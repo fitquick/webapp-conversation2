@@ -410,36 +410,86 @@ const Main: FC = () => {
         })
       },
       async onCompleted(hasError?: boolean) {
-        if (hasError)
-          return
+  // Immediately set the chatbot as not responding, regardless of potential errors in fetching conversations
+  setResponsingFalse();
 
-        if (getConversationIdChangeBecauseOfNew()) {
-          const { data: allConversations }: any = await fetchConversations()
-          const newItem: any = await generationConversationName(allConversations[0].id)
+  if (hasError) {
+    return; // Early return if there was an error in the chat message operation
+  }
 
-          const newAllConversations = produce(allConversations, (draft: any) => {
-            draft[0].name = newItem.name
-          })
-          setConversationList(newAllConversations as any)
-        }
-        setConversationIdChangeBecauseOfNew(false)
-        resetNewConversationInputs()
-        setChatNotStarted()
-        setCurrConversationId(tempNewConversationId, APP_ID, true)
-        setResponsingFalse()
-      },
-      onFile(file) {
-        const lastThought = responseItem.agent_thoughts?.[responseItem.agent_thoughts?.length - 1]
-        if (lastThought)
-          lastThought.message_files = [...(lastThought as any).message_files, { ...file }]
+  try {
+    if (getConversationIdChangeBecauseOfNew()) {
+      // Attempt to fetch all conversations and generate a new name for the conversation
+      const { data: allConversations }: any = await fetchConversations();
+      if (allConversations && allConversations.length > 0) {
+        const newItem: any = await generationConversationName(allConversations[0].id);
 
-        updateCurrentQA({
-          responseItem,
-          questionId,
-          placeholderAnswerId,
-          questionItem,
-        })
-      },
+        // Proceed with setting new conversation information and resetting state as needed
+        const newAllConversations = produce(allConversations, (draft: any) => {
+          draft[0].name = newItem.name;
+        });
+        setConversationList(newAllConversations as any);
+        
+        setConversationIdChangeBecauseOfNew(false);
+        resetNewConversationInputs();
+        setChatNotStarted();
+        setCurrConversationId(allConversations[0].id, APP_ID, true);
+      } else {
+        // Handle the case where no conversations are returned
+        console.error("No conversations were fetched.");
+      }
+    }
+  } catch (error) {
+    console.error("An error occurred while fetching conversations or generating a new conversation name:", error);
+    // Here, handle the error as needed, possibly setting additional error states or displaying a message to the user
+  }
+},
+onFile(file) {
+  const lastThought = responseItem.agent_thoughts?.[responseItem.agent_thoughts?.length - 1];
+  if (lastThought)
+    lastThought.message_files = [...(lastThought as any).message_files, { ...file }];
+
+  updateCurrentQA({
+    responseItem,
+    questionId,
+    placeholderAnswerId,
+    questionItem,
+  });
+},
+onThought(thought) {
+  isAgentMode = true;
+  const response = responseItem as any;
+  if (thought.message_id && !hasSetResponseId) {
+    response.id = thought.message_id;
+    hasSetResponseId = true;
+  }
+  // responseItem.id = thought.message_id;
+  if (response.agent_thoughts.length === 0) {
+    response.agent_thoughts.push(thought);
+  } else {
+    const lastThought = response.agent_thoughts[response.agent_thoughts.length - 1];
+    // thought changed but still the same thought, so update.
+    if (lastThought.id === thought.id) {
+      thought.thought = lastThought.thought;
+      thought.message_files = lastThought.message_files;
+      responseItem.agent_thoughts![response.agent_thoughts.length - 1] = thought;
+    } else {
+      responseItem.agent_thoughts!.push(thought);
+    }
+  }
+  // has switched to other conversation
+  if (prevTempNewConversationId !== getCurrConversationId()) {
+    setIsResponsingConCurrCon(false);
+    return false;
+  }
+
+  updateCurrentQA({
+    responseItem,
+    questionId,
+    placeholderAnswerId, 
+    questionItem,
+  });
+},
       onThought(thought) {
         isAgentMode = true
         const response = responseItem as any
