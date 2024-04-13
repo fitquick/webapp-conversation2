@@ -47,10 +47,10 @@ const Main: FC = () => {
 
   useEffect(() => {
     if (APP_INFO?.title)
-      document.title = `${APP_INFO.title} - Powered by Dify`
+      document.title = `${APP_INFO.title} - Erstellt von Wirth Kirkali & Partner`
   }, [APP_INFO?.title])
 
-  // onData change thought (the produce obj). https://github.com/immerjs/immer/issues/576
+  
   useEffect(() => {
     setAutoFreeze(false)
     return () => {
@@ -79,7 +79,7 @@ const Main: FC = () => {
   } = useConversation()
 
   const [conversationIdChangeBecauseOfNew, setConversationIdChangeBecauseOfNew, getConversationIdChangeBecauseOfNew] = useGetState(false)
-  const [isChatStarted, { setTrue: setChatStarted, setFalse: setChatNotStarted }] = useBoolean(false)
+  const [isChatStarted, { setTrue: setChatStarted, setFalse: setChatNotStarted }] = useBoolean(true)
   const handleStartChat = (inputs: Record<string, any>) => {
     createNewChat()
     setConversationIdChangeBecauseOfNew(true)
@@ -410,86 +410,53 @@ const Main: FC = () => {
         })
       },
       async onCompleted(hasError?: boolean) {
-  // Immediately set the chatbot as not responding, regardless of potential errors in fetching conversations
-  setResponsingFalse();
-
-  if (hasError) {
-    return; // Early return if there was an error in the chat message operation
-  }
-
-  try {
-    if (getConversationIdChangeBecauseOfNew()) {
-      // Attempt to fetch all conversations and generate a new name for the conversation
-      const { data: allConversations }: any = await fetchConversations();
-      if (allConversations && allConversations.length > 0) {
-        const newItem: any = await generationConversationName(allConversations[0].id);
-
-        // Proceed with setting new conversation information and resetting state as needed
-        const newAllConversations = produce(allConversations, (draft: any) => {
-          draft[0].name = newItem.name;
-        });
-        setConversationList(newAllConversations as any);
+        // Immediately set the chatbot as not responding, regardless of potential errors in fetching conversations
+        setResponsingFalse();
         
-        setConversationIdChangeBecauseOfNew(false);
-        resetNewConversationInputs();
-        setChatNotStarted();
-        setCurrConversationId(allConversations[0].id, APP_ID, true);
-      } else {
-        // Handle the case where no conversations are returned
-        console.error("No conversations were fetched.");
-      }
-    }
-  } catch (error) {
-    console.error("An error occurred while fetching conversations or generating a new conversation name:", error);
-    // Here, handle the error as needed, possibly setting additional error states or displaying a message to the user
-  }
-},
-onFile(file) {
-  const lastThought = responseItem.agent_thoughts?.[responseItem.agent_thoughts?.length - 1];
-  if (lastThought)
-    lastThought.message_files = [...(lastThought as any).message_files, { ...file }];
+        if (hasError) {
+          return; // Early return if there was an error in the chat message operation
+        }
 
-  updateCurrentQA({
-    responseItem,
-    questionId,
-    placeholderAnswerId,
-    questionItem,
-  });
-},
-onThought(thought) {
-  isAgentMode = true;
-  const response = responseItem as any;
-  if (thought.message_id && !hasSetResponseId) {
-    response.id = thought.message_id;
-    hasSetResponseId = true;
-  }
-  // responseItem.id = thought.message_id;
-  if (response.agent_thoughts.length === 0) {
-    response.agent_thoughts.push(thought);
-  } else {
-    const lastThought = response.agent_thoughts[response.agent_thoughts.length - 1];
-    // thought changed but still the same thought, so update.
-    if (lastThought.id === thought.id) {
-      thought.thought = lastThought.thought;
-      thought.message_files = lastThought.message_files;
-      responseItem.agent_thoughts![response.agent_thoughts.length - 1] = thought;
-    } else {
-      responseItem.agent_thoughts!.push(thought);
-    }
-  }
-  // has switched to other conversation
-  if (prevTempNewConversationId !== getCurrConversationId()) {
-    setIsResponsingConCurrCon(false);
-    return false;
-  }
+        try {
+          // Attempt to fetch all conversations and generate a new name for the conversation
+          const { data: allConversations }: any = await fetchConversations();
+          if (allConversations && allConversations.length > 0) {
+            const newItem: any = await generationConversationName(allConversations[0].id);
+            
+            // Proceed with setting new conversation information and resetting state as needed
+            const newAllConversations = produce(allConversations, (draft: any) => {
+              draft[0].name = newItem.name;
+            });
+            setConversationList(newAllConversations as any);
+            
+            // Additional logic to reset inputs and conversation IDs as needed
+            if (getConversationIdChangeBecauseOfNew()) {
+              setConversationIdChangeBecauseOfNew(false);
+              resetNewConversationInputs();
+              setChatNotStarted();
+              setCurrConversationId(allConversations[0].id, APP_ID, true);
+            }
+          } else {
+            // Handle the case where no conversations are returned
+            console.error("No conversations were fetched.");
+          }
+        } catch (error) {
+          console.error("An error occurred while fetching conversations or generating a new conversation name:", error);
+          // Here, handle the error as needed, possibly setting additional error states or displaying a message to the user
+        }
+      },
+      onFile(file) {
+        const lastThought = responseItem.agent_thoughts?.[responseItem.agent_thoughts?.length - 1]
+        if (lastThought)
+          lastThought.message_files = [...(lastThought as any).message_files, { ...file }]
 
-  updateCurrentQA({
-    responseItem,
-    questionId,
-    placeholderAnswerId, 
-    questionItem,
-  });
-},
+        updateCurrentQA({
+          responseItem,
+          questionId,
+          placeholderAnswerId,
+          questionItem,
+        })
+      },
       onThought(thought) {
         isAgentMode = true
         const response = responseItem as any
@@ -543,6 +510,7 @@ onThought(thought) {
                 ...responseItem,
               })
             })
+          setResponsingFalse()
           setChatList(newListWithAnswer)
           return
         }
@@ -614,19 +582,19 @@ onThought(thought) {
     return <Loading type='app' />
 
   return (
-    <div className='bg-gray-100'>
+    <div className='bg-green-50'>
       <Header
         title={APP_INFO.title}
         isMobile={isMobile}
-        onShowSideBar={showSidebar}
+        onShowSideBar={hideSidebar}
         onCreateNewChat={() => handleConversationIdChange('-1')}
       />
-      <div className="flex rounded-t-2xl bg-white overflow-hidden">
+      <div className="flex rounded-t-2xl bg-green overflow-hidden">
         {/* sidebar */}
         {!isMobile && renderSidebar()}
         {isMobile && isShowSidebar && (
           <div className='fixed inset-0 z-50'
-            style={{ backgroundColor: 'rgba(35, 56, 118, 0.2)' }}
+            style={{ backgroundColor: 'rgba(232, 244, 234, 0.2)' }}
             onClick={hideSidebar}
           >
             <div className='inline-block' onClick={e => e.stopPropagation()}>
